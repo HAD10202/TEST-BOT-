@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from contextlib import closing
 import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
@@ -111,10 +112,11 @@ class DataSafetyTests(unittest.TestCase):
 
     def test_legacy_database_migration_blocks_reinterpretation(self):
         path=self.tmp.name+'/old'
-        with sqlite3.connect(path) as c:
-            c.execute('CREATE TABLE tickets(id INTEGER PRIMARY KEY, owner INTEGER NOT NULL,profile INTEGER NOT NULL,day TEXT NOT NULL,message INTEGER NOT NULL,raw TEXT NOT NULL,config TEXT NOT NULL,UNIQUE(owner,message))')
-            cfg=json.dumps(self.db.profile(1,self.pid)['config'])
-            c.execute('INSERT INTO tickets VALUES(1,1,1,?,1,?,?)',(DAY,'Đề 12=1tr5',cfg))
+        with closing(sqlite3.connect(path)) as c:
+            with c:
+                c.execute('CREATE TABLE tickets(id INTEGER PRIMARY KEY, owner INTEGER NOT NULL,profile INTEGER NOT NULL,day TEXT NOT NULL,message INTEGER NOT NULL,raw TEXT NOT NULL,config TEXT NOT NULL,UNIQUE(owner,message))')
+                cfg=json.dumps(self.db.profile(1,self.pid)['config'])
+                c.execute('INSERT INTO tickets VALUES(1,1,1,?,1,?,?)',(DAY,'Đề 12=1tr5',cfg))
         old=Ledger(path)
         pid=old.create(1,'Khách','A')
         rows=old.tickets(1,pid,DAY)

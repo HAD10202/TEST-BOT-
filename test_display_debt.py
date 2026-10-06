@@ -1,6 +1,7 @@
 """Approved view/debt regression. Lottery fixtures are not live verification."""
 import json
 import sqlite3
+from contextlib import closing
 import tempfile
 import unittest
 from decimal import Decimal
@@ -147,9 +148,10 @@ class DisplayDebtTests(unittest.TestCase):
     def test_migration_old_db_preserves_rows(self):
         path=self.tmp.name+'/legacy'
         cfg=json.dumps(self.profile()['config'])
-        with sqlite3.connect(path) as c:
-            c.execute('CREATE TABLE profiles(id INTEGER PRIMARY KEY,owner INTEGER,side TEXT,name TEXT,config TEXT)')
-            c.execute('INSERT INTO profiles VALUES(1,1,?,?,?)',('Khách','Legacy',cfg))
+        with closing(sqlite3.connect(path)) as c:
+            with c:
+                c.execute('CREATE TABLE profiles(id INTEGER PRIMARY KEY,owner INTEGER,side TEXT,name TEXT,config TEXT)')
+                c.execute('INSERT INTO profiles VALUES(1,1,?,?,?)',('Khách','Legacy',cfg))
         old=Ledger(path);self.assertEqual(old.profile(1,1)['old_balance'],'0');old.set_old_balance(1,1,'THU 25')
         self.assertEqual(Ledger(path).profile(1,1)['old_balance'],'25')
 

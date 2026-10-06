@@ -20,6 +20,7 @@ FROZEN_BLOBS = {
     "test_accounting.py": "2ee3a73f29571b63f652d9557b5728041142e21c",
     "test_bot_menu.py": "9e4c1305a963185b66d9e6adefde9cd4406dd79d",
     "test_calculator.py": "3bc7d80725d1c93c7bbab177d98315ffe4f517db",
+    "test_display_debt.py": "abe67a1fa5fd5a7fd8f9dcefbc376af055a5dcfa",
     "test_safety_accounting.py": "0e6d7839ca19818a34b1603c29072b1515cbae18",
     "test_safety_parser.py": "fb73c52bfa499ece06d95a8545b5171b8ac4db08",
     "test_safety_ui.py": "411b2cba01ff29ba61e024c0f60a476f60d70dd6",
@@ -68,6 +69,24 @@ def require(condition, message):
         raise RuntimeError(message)
 
 
+# The owner authorized ONLY explicit closing of these two fixture connections.
+# Undo exactly those import/wrapper edits before checking the ORIGINAL full-file
+# blob. Any changed assertion, ticket, SQL, expected money or unrelated code
+# therefore still fails the frozen-source guard (not just an assertion subset).
+FIXTURE_CLOSE_PATCHES = {'test_safety_accounting.py': ("        with sqlite3.connect(path) as c:\n            c.execute('CREATE TABLE tickets(id INTEGER PRIMARY KEY, owner INTEGER NOT NULL,profile INTEGER NOT NULL,day TEXT NOT NULL,message INTEGER NOT NULL,raw TEXT NOT NULL,config TEXT NOT NULL,UNIQUE(owner,message))')\n            cfg=json.dumps(self.db.profile(1,self.pid)['config'])\n            c.execute('INSERT INTO tickets VALUES(1,1,1,?,1,?,?)',(DAY,'Đề 12=1tr5',cfg))\n", "        with closing(sqlite3.connect(path)) as c:\n            with c:\n                c.execute('CREATE TABLE tickets(id INTEGER PRIMARY KEY, owner INTEGER NOT NULL,profile INTEGER NOT NULL,day TEXT NOT NULL,message INTEGER NOT NULL,raw TEXT NOT NULL,config TEXT NOT NULL,UNIQUE(owner,message))')\n                cfg=json.dumps(self.db.profile(1,self.pid)['config'])\n                c.execute('INSERT INTO tickets VALUES(1,1,1,?,1,?,?)',(DAY,'Đề 12=1tr5',cfg))\n"), 'test_display_debt.py': ("        with sqlite3.connect(path) as c:\n            c.execute('CREATE TABLE profiles(id INTEGER PRIMARY KEY,owner INTEGER,side TEXT,name TEXT,config TEXT)')\n            c.execute('INSERT INTO profiles VALUES(1,1,?,?,?)',('Khách','Legacy',cfg))\n", "        with closing(sqlite3.connect(path)) as c:\n            with c:\n                c.execute('CREATE TABLE profiles(id INTEGER PRIMARY KEY,owner INTEGER,side TEXT,name TEXT,config TEXT)')\n                c.execute('INSERT INTO profiles VALUES(1,1,?,?,?)',('Khách','Legacy',cfg))\n")}
+
+
+def original_fixture_bytes(path, data):
+    if path not in FIXTURE_CLOSE_PATCHES:
+        return data
+    old, new = FIXTURE_CLOSE_PATCHES[path]
+    text = data.decode('utf-8')
+    import_line = 'from contextlib import closing\n'
+    require(text.count(import_line) == 1 and text.count(new) == 1,
+            'Fixture edit differs from authorized close-only patch: ' + path)
+    return text.replace(import_line, '', 1).replace(new, old, 1).encode('utf-8')
+
+
 def function_digest(node):
     # Python 3.12 adds empty type_params to function/class AST nodes. Remove
     # only that empty metadata so original 3.11 source hashes identically.
@@ -93,7 +112,7 @@ def main():
     args = parser.parse_args()
     os.chdir(ROOT)
     for path, expected in FROZEN_BLOBS.items():
-        data = (ROOT / path).read_bytes()
+        data = original_fixture_bytes(path, (ROOT / path).read_bytes())
         digest = hashlib.sha1(b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest()
         require(digest == expected, f"Frozen checkpoint file changed: {path}")
     for path, expected in PROTECTED_FUNCTIONS.items():
@@ -124,6 +143,7 @@ def main():
     require(sum(actual[m] for m in OLD) == 78 and sum(actual[m] for m in SAFETY) == 102 and len(ids) == 269,
             "Expected 78 old + 102 safety + 89 approved checkpoint = 269")
     print("FROZEN SOURCE/TEST FILES: PASS (base " + BASE_COMMIT + ")")
+    print("FIXTURE ASSERTIONS / BUSINESS DATA: PASS (original full-file blobs after close-only normalization)")
     print("DISCOVERY: OLD 78 / SAFETY 102 / CHECKPOINT 89 / TOTAL 269; no skips or expected failures")
     if args.results:
         log = args.results.read_text(encoding="utf-8")
