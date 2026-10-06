@@ -25,34 +25,34 @@ FROZEN_BLOBS = {
     "test_safety_ui.py": "411b2cba01ff29ba61e024c0f60a476f60d70dd6",
     "test_ui.py": "0eac8c2287694628f6c6e103bbac482108fe472c"
 }
-PROTECTED_FUNCTIONS = {'accounting.py': {'number': '3f31041ea527d79049742c49252c2b636112ffd34dfd87903a1252065285ac9f',
-                   'checked_calculation': '6fd0f289c19be92faac8c05521966f0516d33086206f09e78b8596974ad5fc69',
-                   'snapshot': '18964f4435481a744aa40e08195c4672200875a3f5b9064285c88a350099d5e5',
-                   'stored_entries': '6790b09a75e8bca5a8dc01d2ba7cd0feae6dcabc016f1a643efd338cdcd89f5d',
-                   'validate_result': '1bc3b36e532cd202e53bdb74cffcb2228663e8bb2e620360dad39fcbe856e521',
-                   'validate_config': '391dc82256dceba9137ef2758a1f8aa4a72421150b3ee959bdb5a5140dc3bc83',
-                   'Ledger.query': '737ede89904564fe83a7d9d9daef7fdbc67fcc0987cdbf5e194bb486f399285f',
-                   'Ledger.profiles': '1922741ed59be940fe1ae3c6d58a4158a48f47b44be7c2188b7c4b2dd0d42e63',
-                   'Ledger.profile': '55bf4d0ff5502ae0a3b17d9c09000a4295ca6e1ad55a7c49fa6251d99220f048',
-                   'Ledger.create': '67849a30d74328a6011f9ff6d48d3808de1e20934213242c11ed4280e07fceb6',
-                   'Ledger.configure': 'e8279cf895cc144d3ab4b241cd2071e8733d5759b2c81de996ef41a92d031ad2',
-                   'Ledger.select_variant': 'eafb608f925661408590d3f191430fb0e9e42f07c849bac128179dc9315c7cfb',
-                   'Ledger.add': 'bac0266ff817a03901e1b4d36f4811bf251a06ef5507ad103db720edb774d29b',
-                   'Ledger.tickets': '1b041dfc3f35807cdac4b1f991e12ab6c2e09f94d64d382ca116e7fa9ed7b05d',
-                   'Ledger.delete': '704038e3f04ccbe4ff85a937b404c048bbbaf04e9288448539f4e1797157ef91',
-                   'Ledger.replace': 'de1a6d011199ba7dee295eec5275f8a6fc7501ff1fbf44efc4a030145b8854e6',
-                   'Ledger._mutate': '104f3d96667f43df0fbf02d572b2880504789fe49b75e78a72e13e7cb0ebbcdb',
-                   'totals': 'aaaca0405dd9867c3f05f7ab83351b367554eb0135777d50a2b94a4125eb5acb',
-                   'summary': '03fed1c406bf1e9b9a03e79cb72a4b42b72f6b202009b94bb246a79ed351e448'},
- 'bot.py': {'clear_pending': 'caf53a7e07c2efb9d4947e949af27644459673a85990bb3fd69c02ac3d51c336',
-            'allowed': '2d8107f6c917fad6f004d5e54be6545bcd8c169fd1c0664afe554123580ecd7f',
-            'today': 'b2e4d176e8125e8a850414afb9b1156e3f13f78801efe21bd640353d083f4912',
-            'reply': '33a1dce462229e2d982504b601245ff49df44ff9b65acb1e49b632ceaf079255',
-            'save_input': '7463701555562d1c11b0e5cc31ee6ce2f101c8668f784037d0f36ed84a7d4b7c',
-            'current': '4e76c8cc24b70d9ea3b0c42695925c7cbb32a20ea7d6600302561f357d7bcdaf',
-            'card': 'f61735ba603cf9db3ad457f2cd09d55c932006d89220756cc4b7e4d53014516d',
-            'start': '5401a1524d4c867379a7301ad16da43cc7023bcfa0614d606216afda4169b512',
-            'choose': '91b0632238fac0078a9192ff04f61f1006b8d576f022a54cb4e9b1d8b379cbea'}}
+PROTECTED_FUNCTIONS = {'accounting.py': {'number': '55550486495fb679940eb4cb6aa8ce62640f8b66099773efdc5def35e137e6cc',
+                   'checked_calculation': '69bc38129dfa77475cfd065d8724b9eaed9add8f5708ca81011188d3ccbdf96a',
+                   'snapshot': 'd10e4eb3ca55e15e817ca272e492c805b2593ba931b86bc4eef6e8d9494bac49',
+                   'stored_entries': '0351c55cedd9d15e2c3494ea6cf6a5d63c1140e94a4fdb26ae08ea72fdfcacf6',
+                   'validate_result': '8bea5bbcbf577b04ee915d38469f76d6e354222bee75f8848d5732390bfc7f0b',
+                   'validate_config': '0461b31424a44928c25f5952dca9792b94386a96e4f84478328d5475e26f2829',
+                   'Ledger.query': '8d324ef6d78c1c865a780ea713cab24024f26ff4a982a0ce25d391017f853843',
+                   'Ledger.profiles': '249f7e2a77c9b1a3d6889d3e7781c7101d7d57b4c5011d116109e5dc9613c678',
+                   'Ledger.profile': '640ae0c8dd0b6622738a77d7a5bfde48890aec1cb18eece789ec5c543af23dbb',
+                   'Ledger.create': 'e10dc70195f6b37223a5e08c1b43fa4489c86446def0d9943e63438731f52829',
+                   'Ledger.configure': '7ea920e4f8acb903d464ec98dbcdb9966273dc8b24f9977e5bb89967ce01c560',
+                   'Ledger.select_variant': '8238d1d2f9aaf89adcb647e0e11e637fbb0c60827ed299e44cfa40ede9e4580b',
+                   'Ledger.add': '08d1d0a5d689b315f6750c35be68cb962ae33cc31dc59837520d06e13ca5f32b',
+                   'Ledger.tickets': '69fef88ebe68b3019768c2e41e052912c3dd7aaa85819cb217f1c7d83be86894',
+                   'Ledger.delete': '2c139d2373b28cf1d37375c50fedea85d16929a3b6875582509dd25754c2bad5',
+                   'Ledger.replace': 'c0dfca74f6de28470eb1d056e1ec2954082cd5e59ca44c9be8a7f317fb3dd406',
+                   'Ledger._mutate': '759627111c24bda9d8ea6d23ba399bc11cbc0b76ad9aefab4603d5982b95c1e8',
+                   'totals': '028be8e5f01908234570c875928f0644412051f1d2f5c6034fa0f133672ab2be',
+                   'summary': 'b4305ef796e6b6d7180ec8ab5020995923599549fb6e5d80c3a03732ec38e592'},
+ 'bot.py': {'clear_pending': '63532d0c2273ef36a0514ab4f7bf18f89ed51f9b61f0c31eb38a730623c78d5f',
+            'allowed': '475e14e7e97e03b3aea5145f526f586bf661e174541dd205fce04ef6cea182a9',
+            'today': '56680460594d463cde5952e372f75d0f26d24cdf738ac3656ad2fbb62b4a297b',
+            'reply': '68e1ca5ce561e7b463b1a464ae18d97f6b08079199149e39a352d55a84c6c696',
+            'save_input': '8fb650bc40e0e821622bfa0dfab8bad717e0c847c033b5f4451c0b2993ae1fc9',
+            'current': '499be239a2b4cce01a93f705d997c92ba95fb4fa2eaef840644d9b6136b9668e',
+            'card': '2ac6a0ca0187fd86bafcea6e45918f879e2ebdbd9049a6c7f8fde31ba02c8db6',
+            'start': '6f6fd19e70f3d59e5da42d2726a9b201bd8f6552dd9b659d0c2f7b3a404066a2',
+            'choose': '670bc05b47c056f9291b5c7e38cd3b261b718a7515469c8ea6e5dce18222ac40'}}
 
 EXPECTED = {
     "test_calculator": 67, "test_bot_menu": 5, "test_accounting": 5, "test_ui": 1,
@@ -66,6 +66,17 @@ OLD = {"test_calculator", "test_bot_menu", "test_accounting", "test_ui"}
 def require(condition, message):
     if not condition:
         raise RuntimeError(message)
+
+
+def function_digest(node):
+    # Python 3.12 adds empty type_params to function/class AST nodes. Remove
+    # only that empty metadata so original 3.11 source hashes identically.
+    # Nonempty generic declarations are never ignored by this guard.
+    for child in ast.walk(node):
+        if hasattr(child, 'type_params'):
+            require(not child.type_params, 'Unexpected generic declaration in protected source')
+            child._fields = tuple(field for field in child._fields if field != 'type_params')
+    return hashlib.sha256(ast.dump(node, include_attributes=False).encode()).hexdigest()
 
 
 def flatten(suite):
@@ -91,7 +102,7 @@ def main():
         def collect(nodes, prefix=''):
             for node in nodes:
                 if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    actual_functions[prefix + node.name] = hashlib.sha256(ast.dump(node, include_attributes=False).encode()).hexdigest()
+                    actual_functions[prefix + node.name] = function_digest(node)
                 elif isinstance(node, ast.ClassDef):
                     collect(node.body, node.name + '.')
         collect(tree.body)

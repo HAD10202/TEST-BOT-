@@ -21,7 +21,7 @@ class WindowsSetupTests(unittest.TestCase):
         self.tmp=tempfile.TemporaryDirectory()
         self.path=Path(self.tmp.name)/'TEST-BOT'/'secrets.env'
     def tearDown(self):self.tmp.cleanup()
-    def test_requirements_tzdata(self):self.assertIn('tzdata',(ROOT/'requirements.txt').read_text().splitlines())
+    def test_requirements_tzdata(self):self.assertIn('tzdata',(ROOT/'requirements.txt').read_text(encoding='utf-8').splitlines())
     def test_timezone_from_tzdata_without_system_db(self):
         import zoneinfo
         previous=zoneinfo.TZPATH
@@ -109,10 +109,10 @@ class WindowsSetupTests(unittest.TestCase):
         finally:logger.removeHandler(handler);logger.setLevel(previous);logger.propagate=propagate
         self.assertNotIn(TOKEN,stream.getvalue());self.assertNotIn(TOKEN.replace(':','%3A'),stream.getvalue());self.assertNotIn('Traceback',stream.getvalue())
     def test_setup_console_no_getpass(self):
-        self.assertNotIn('getpass',(ROOT/'run.py').read_text()+(ROOT/'local_config.py').read_text())
-        self.assertIn('Ctrl+V',(ROOT/'local_config.py').read_text())
+        self.assertNotIn('getpass',(ROOT/'run.py').read_text(encoding='utf-8')+(ROOT/'local_config.py').read_text(encoding='utf-8'))
+        self.assertIn('Ctrl+V',(ROOT/'local_config.py').read_text(encoding='utf-8'))
     def test_bat_double_click_dependency_and_change_flow(self):
-        bat=(ROOT/'CHAY_BOT_WINDOWS.bat').read_text();change=(ROOT/'CAI_DAT_BOT_WINDOWS.bat').read_text()
+        bat=(ROOT/'CHAY_BOT_WINDOWS.bat').read_text(encoding='utf-8');change=(ROOT/'CAI_DAT_BOT_WINDOWS.bat').read_text(encoding='utf-8')
         self.assertIn('run.py %*',bat);self.assertIn('.venv',bat);self.assertIn('pip install -r requirements.txt',bat)
         self.assertIn('--setup',change);self.assertNotIn('TELEGRAM_BOT_TOKEN=',bat+change);self.assertNotIn('getpass',bat+change)
     def test_run_import_passive(self):
