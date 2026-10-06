@@ -25,4 +25,3 @@ Bản này chưa có nợ cũ, thu/trả đã thanh toán, chốt ngày, tổng 
 Tên và % thật cần người dùng thêm bằng menu; không tự suy các tỷ lệ từ bảng đang làm dở.
 
 calculator.py và results.py giữ nguyên từ ZIP gốc. legacy_bot.py giữ bot gốc tham khảo. Bộ kiểm thử cũ kiểm tra parser và menu cũ, không chứng minh menu mới chạy thật. Xem REPORT.md để biết kiểm chứng.
-
