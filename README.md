@@ -12,7 +12,7 @@ Máy cần Python 3.11 trở lên và Internet. Giải nén source vào một th
 4. Những lần sau chỉ double-click **CHAY_BOT_WINDOWS.bat**; không cần nhập lại token hoặc Admin ID.
 5. Muốn đổi token hoặc Admin ID: double-click **CAI_DAT_BOT_WINDOWS.bat**, nhập lại cả hai. Tắt cửa sổ bot cũ rồi chạy lại.
 
-Token lưu riêng ở `%APPDATA%\TEST-BOT\secrets.env`, ngoài source. Tải source mới vẫn giữ cấu hình trên cùng tài khoản Windows. Không gửi file đó cho người khác, đưa vào ZIP hoặc GitHub. Token lỗi do cách dán sẽ bị chặn trước khi gọi Telegram. Chỉ Admin ID được cấu hình mới dùng bot trong chat riêng.
+Token lưu riêng ở `%APPDATA%\TEST-BOT\secrets.env`, ngoài source. Tải source mới vẫn giữ cấu hình trên cùng tài khoản Windows. Không gửi file đó cho người khác, đưa vào ZIP hoặc GitHub. Token lỗi do cách dán sẽ bị chặn trước khi gọi Telegram. Admin ID cấu hình là OWNER. OWNER có thể cấp quyền cho người khác qua menu Người sử dụng; bot vẫn chỉ dùng trong chat riêng.
 
 Nếu báo token không hợp lệ: mở CAI_DAT_BOT_WINDOWS.bat để dán lại. Nếu báo không kết nối Telegram: kiểm tra Internet rồi mở lại file chạy. Không cần mở PowerShell hay gõ lệnh.
 
@@ -66,3 +66,15 @@ Nợ cũ thuộc riêng từng người, theo góc nhìn admin cho cả Khách v
 Xem tổng chỉ hiện loại có tiền hàng. Khối THƯỞNG chỉ hiện loại trúng. X3 và AC hiện tiền gốc, ghi rõ hệ số và tiền thưởng thực tính vào tổng. Các loại khác hiện tiền thưởng thực. Sổ vé đọc cách hiểu đã lưu, không đọc lại raw; ×14/×15 lấy từ tỷ lệ lúc lưu từng tin.
 
 Trước nâng cấp, tắt bot và sao lưu DB. Migration thêm `profiles.old_balance` mặc định 0 và lịch sử sửa số dư; không thay vé/tỷ lệ cũ. Test checkpoint và các giới hạn kiểm chứng xem DISPLAY_SETUP_REPORT.md.
+
+## Nhiều người dùng chung bot
+
+OWNER là Telegram Admin ID đã nhập khi cài đặt. OWNER mở **👥 Người sử dụng** → **➕ Thêm người** rồi dán một hoặc nhiều Telegram User ID (xuống dòng, dấu phẩy hoặc khoảng trắng đều được). Có ID sai thì bot báo rõ và không lưu bất kỳ ID nào trong batch. ID đã có không tạo bản trùng.
+
+Gỡ quyền: **➖ Xóa người** → gửi các ID → kiểm tra danh sách → gửi **XÓA QUYỀN**. OWNER không thể bị gỡ. Người vừa bị gỡ không đọc/ghi được bot nữa. Nhân viên không thấy menu quản lý này và cũng không dùng được bằng cách tự gõ tên nút.
+
+Mọi người được cấp quyền dùng **chung toàn bộ Khách/Chủ, vé, %, thưởng, nợ cũ, tổng và ngày đang tính** trong cùng SQLite của OWNER. Tên đang chọn và thao tác chờ riêng cho từng người. Khi một người đổi ngày chung, các thao tác chờ của người khác bị hủy khi họ gửi tin tiếp theo; bot báo ngày mới. Ngày chung được lưu qua lần khởi động lại, không tự chốt/chuyển ngày.
+
+Nếu người khác vừa đổi tỷ lệ/bộ ×14/×15, người đang nhập thấy cảnh báo và tỷ lệ mới, rồi gửi lại tin. Vé cũ vẫn giữ tỷ lệ lúc nhập. Nếu cùng sửa/xóa một phiên bản vé, chỉ một thao tác được lưu; người còn lại phải mở lại Sửa tin/Xóa tin để xem bản mới. Audit ghi đúng Telegram ID người thực hiện, không thay thành ID OWNER.
+
+Không nhập token hay đổi OWNER qua Telegram. Chức năng setup token vẫn chỉ nằm trên máy chạy bot. Sau nâng cấp, dùng CHAY_BOT_WINDOWS.bat/run.py như hiện tại; không dùng legacy_bot.py để ghi dữ liệu. Trước nâng cấp: tắt bot và sao lưu DB. Chi tiết migration/giới hạn xem MULTI_USER_REPORT.md.

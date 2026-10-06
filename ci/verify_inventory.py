@@ -12,6 +12,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 BASE_COMMIT = "8369ba4dff6bbd8fc1facc75bdb189cf725e8020"
 FROZEN_BLOBS = {
+    'test_checkpoint_ui.py': 'c7ecdc1cc5dd97087cb4d5b37a58014058a8ad3d',
+    'test_windows_setup.py': 'd77307121f659053fa5c555724a9e6a5b797a354',
+    'presentation.py': 'c825ad0d59363e87feeaf0703b3ef5b9dbe6da43',
+    'accounting.py': '09b961af0846148227d7ad241e771c55f3e0e084',
     "CHAY_BOT_MACOS.command": "37fba5f9e41c39622f8be4d9409b0a0d42a6d43f",
     "REPORT.md": "d2f1abd3f5f73f86562846ce88f1d7f925c304d2",
     "calculator.py": "5682f04253213e01cacab2ae78c6498d8ed6ec43",
@@ -45,20 +49,13 @@ PROTECTED_FUNCTIONS = {'accounting.py': {'number': '55550486495fb679940eb4cb6aa8
                    'Ledger._mutate': '759627111c24bda9d8ea6d23ba399bc11cbc0b76ad9aefab4603d5982b95c1e8',
                    'totals': '028be8e5f01908234570c875928f0644412051f1d2f5c6034fa0f133672ab2be',
                    'summary': 'b4305ef796e6b6d7180ec8ab5020995923599549fb6e5d80c3a03732ec38e592'},
- 'bot.py': {'clear_pending': '63532d0c2273ef36a0514ab4f7bf18f89ed51f9b61f0c31eb38a730623c78d5f',
-            'allowed': '475e14e7e97e03b3aea5145f526f586bf661e174541dd205fce04ef6cea182a9',
-            'today': '56680460594d463cde5952e372f75d0f26d24cdf738ac3656ad2fbb62b4a297b',
-            'reply': '68e1ca5ce561e7b463b1a464ae18d97f6b08079199149e39a352d55a84c6c696',
-            'save_input': '8fb650bc40e0e821622bfa0dfab8bad717e0c847c033b5f4451c0b2993ae1fc9',
-            'current': '499be239a2b4cce01a93f705d997c92ba95fb4fa2eaef840644d9b6136b9668e',
-            'card': '2ac6a0ca0187fd86bafcea6e45918f879e2ebdbd9049a6c7f8fde31ba02c8db6',
-            'start': '6f6fd19e70f3d59e5da42d2726a9b201bd8f6552dd9b659d0c2f7b3a404066a2',
-            'choose': '670bc05b47c056f9291b5c7e38cd3b261b718a7515469c8ea6e5dce18222ac40'}}
+ 'bot.py': {'today': '56680460594d463cde5952e372f75d0f26d24cdf738ac3656ad2fbb62b4a297b',
+            'card': '2ac6a0ca0187fd86bafcea6e45918f879e2ebdbd9049a6c7f8fde31ba02c8db6'}}
 
 EXPECTED = {
     "test_calculator": 67, "test_bot_menu": 5, "test_accounting": 5, "test_ui": 1,
     "test_safety_parser": 62, "test_safety_accounting": 29, "test_safety_ui": 11,
-    "test_display_debt": 43, "test_windows_setup": 34, "test_checkpoint_ui": 12,
+    "test_display_debt": 43, "test_windows_setup": 34, "test_checkpoint_ui": 12, "test_multi_user": 73,
 }
 SAFETY = {"test_safety_parser", "test_safety_accounting", "test_safety_ui"}
 OLD = {"test_calculator", "test_bot_menu", "test_accounting", "test_ui"}
@@ -127,6 +124,18 @@ def main():
         collect(tree.body)
         require(all(actual_functions.get(name) == digest for name, digest in expected.items()),
                 'Protected money/storage function changed: ' + path)
+    # Debt input validation is inherited semantically unchanged even though
+    # its write transaction now records the real actor in the workspace layer.
+    money_tree = ast.parse((ROOT / 'accounting.py').read_text(encoding='utf-8'))
+    workspace_tree = ast.parse((ROOT / 'workspace.py').read_text(encoding='utf-8'))
+    def method(tree, cls, name):
+        return next(m for c in tree.body if isinstance(c, ast.ClassDef) and c.name == cls
+                    for m in c.body if isinstance(m, ast.FunctionDef) and m.name == name)
+    old_debt = method(money_tree, 'Ledger', 'set_old_balance')
+    new_debt = method(workspace_tree, 'WorkspaceLedger', 'set_old_balance')
+    require([ast.dump(n, include_attributes=False) for n in old_debt.body[:2]] ==
+            [ast.dump(n, include_attributes=False) for n in new_debt.body[:2]],
+            'Debt input/sign/Decimal semantics changed in workspace layer')
     tests = list(flatten(unittest.defaultTestLoader.discover(str(ROOT))))
     ids = [test.id() for test in tests]
     require(len(ids) == len(set(ids)), "Duplicate discovered test IDs")
@@ -140,17 +149,17 @@ def main():
         require(not getattr(method, "__unittest_expecting_failure__", False),
                 f"Expected-failure test: {test.id()}")
     require(actual == EXPECTED, f"Test inventory changed: {actual}, expected {EXPECTED}")
-    require(sum(actual[m] for m in OLD) == 78 and sum(actual[m] for m in SAFETY) == 102 and len(ids) == 269,
-            "Expected 78 old + 102 safety + 89 approved checkpoint = 269")
+    require(sum(actual[m] for m in OLD) == 78 and sum(actual[m] for m in SAFETY) == 102 and len(ids) == 342,
+            "Expected 78 old + 102 safety + 89 UI/debt/Windows + 73 multi-user = 342")
     print("FROZEN SOURCE/TEST FILES: PASS (base " + BASE_COMMIT + ")")
     print("FIXTURE ASSERTIONS / BUSINESS DATA: PASS (original full-file blobs after close-only normalization)")
-    print("DISCOVERY: OLD 78 / SAFETY 102 / CHECKPOINT 89 / TOTAL 269; no skips or expected failures")
+    print("DISCOVERY: OLD 78 / SAFETY 102 / CHECKPOINT 89 / MULTI USER 73 / TOTAL 342; no skips or expected failures")
     if args.results:
         log = args.results.read_text(encoding="utf-8")
         passed = re.findall(r"^\S+ \(([^)]+)\) \.\.\. ok$", log, re.M)
-        require(len(passed) == 269 and set(passed) == set(ids),
-                "Actual passing unittest IDs differ from the 269 discovered IDs")
-        require(re.search(r"^Ran 269 tests in ", log, re.M), "Missing 269-test execution summary")
+        require(len(passed) == 342 and set(passed) == set(ids),
+                "Actual passing unittest IDs differ from the 342 discovered IDs")
+        require(re.search(r"^Ran 342 tests in ", log, re.M), "Missing 342-test execution summary")
         require(re.search(r"^OK\s*$", log, re.M), "Missing clean OK summary")
         require(not re.search(r"\.\.\. (?:skipped|expected failure|unexpected success)", log),
                 "Tests skipped or expected-failed during execution")
@@ -160,7 +169,8 @@ def main():
                    "| OLD TESTS | PASS 78 / FAIL 0 |\n"
                    "| SAFETY TESTS | PASS 102 / FAIL 0 |\n"
                    "| NEW UI/DEBT/WINDOWS TESTS | PASS 89 / FAIL 0 |\n"
-                   "| TOTAL | PASS 269 / FAIL 0; skipped 0 |\n"
+                   "| MULTI USER TESTS | PASS 73 / FAIL 0 |\n"
+                   "| TOTAL | PASS 342 / FAIL 0; skipped 0 |\n"
                    "| BUSINESS RULE CHANGED | NONE (frozen parser/tests and protected calculation/storage AST checks) |\n")
         print(summary)
         if os.getenv("GITHUB_STEP_SUMMARY"):

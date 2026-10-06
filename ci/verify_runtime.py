@@ -42,11 +42,12 @@ async def handler_flow(bot, application, telegram):
     context = SimpleNamespace(user_data={'day': DAY})
     handler = next(h for h in application.handlers[0] if isinstance(h, MessageHandler))
     sequence = 0
+    contexts = {1: context}
 
     async def reply_text(message, text, **kwargs):
         outputs.append(text)
 
-    async def send(text, message_id=None):
+    async def send(text, message_id=None, user_id=1):
         nonlocal sequence
         sequence += 1
         mid = sequence if message_id is None else message_id
@@ -54,13 +55,14 @@ async def handler_flow(bot, application, telegram):
             'update_id': sequence,
             'message': {
                 'message_id': mid, 'date': 0, 'text': text,
-                'from': {'id': 1, 'is_bot': False, 'first_name': 'CI owner'},
-                'chat': {'id': 1, 'type': 'private', 'first_name': 'CI owner'},
+                'from': {'id': user_id, 'is_bot': False, 'first_name': 'CI owner'},
+                'chat': {'id': user_id, 'type': 'private', 'first_name': 'CI owner'},
             },
         }, application.bot)
         check = handler.check_update(update)
         require(bool(check), 'Registered Telegram handler rejected text fixture')
-        await handler.handle_update(update, application, check, context)
+        actor_context = contexts.setdefault(user_id, SimpleNamespace(user_data={'day': DAY}))
+        await handler.handle_update(update, application, check, actor_context)
         return mid
 
     def rows():
@@ -136,6 +138,32 @@ async def handler_flow(bot, application, telegram):
         require('Chưa chốt tiền thu/trả' in outputs[-1], 'Offline fixture unexpectedly settled winnings')
         passed('Daily goods total from frozen snapshot (no lottery settlement)')
 
+        await send('➕ Thêm người')
+        await send('10, 11')
+        require(bot.DB.authorized(1, 10) and bot.DB.authorized(1, 11), 'Batch grant failed')
+        await send('Nhập tin', user_id=10)
+        await send('CI owner', user_id=10)
+        await send('Bao 98=100k', original, user_id=10)
+        require(len(rows()) == 2, 'Staff message collided with owner message ID')
+        staff_ticket = next(r for r in rows() if r['raw'] == 'Bao 98=100k')
+        require(staff_ticket['owner'] == 1, 'Staff created a separate workspace')
+        await send('Nhập tin', user_id=11)
+        await send('CI owner', user_id=11)
+        await send('Sửa tin', user_id=11)
+        await send(f"{staff_ticket['id']}; Bao 98=120k", user_id=11)
+        audit = bot.DB.query('SELECT * FROM ticket_audit WHERE ticket=?', (staff_ticket['id'],))
+        require(audit[-1]['actor'] == 11, 'Audit lost actual staff actor')
+        require(totals(rows())['Bao'][0] == 120, 'Owner cannot see staff edit')
+        await send('➖ Xóa người')
+        await send('10')
+        require(bot.DB.authorized(1, 10), 'Revocation happened before confirmation')
+        await send('XÓA QUYỀN')
+        before = len(outputs)
+        await send('Sổ vé', user_id=10)
+        require(len(outputs) == before and not bot.DB.authorized(1, 10), 'Revoked staff still read data')
+        passed('Multi-user real handlers: batch grant, shared workspace, actor audit, confirmed revoke')
+
+
 
 def main():
     os.chdir(ROOT)
@@ -174,7 +202,7 @@ def main():
         passed('run.py import and handler registration (polling mocked)')
         loop.run_until_complete(handler_flow(bot, application, telegram))
     print('AZ24 LIVE: NOT RUN; TELEGRAM LIVE: NOT RUN')
-    print('RUNTIME SMOKE: PASS; separate from 269 unittest cases')
+    print('RUNTIME SMOKE: PASS; separate from 342 unittest cases')
     if os.getenv('GITHUB_STEP_SUMMARY'):
         with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as output:
             output.write('\nRuntime smoke (real dependency; live services disabled):\n\n')
