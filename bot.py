@@ -7,16 +7,17 @@ from datetime import datetime
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 from accounting import Ledger, summary
+from presentation import render_summary, render_book
 from results import fetch_latest_result, ResultError, VN_TIMEZONE
 from calculator import propose_b_choice
 
 logging.basicConfig(level=logging.WARNING)
 logging.getLogger('httpx').setLevel(logging.WARNING)
-MENU=ReplyKeyboardMarkup([['Nhập tin','Xem tổng'],['Đổi người','Danh sách tin'],['Tạo người','Sửa %','Sửa thưởng'],['Xiên ×14','Xiên ×15'],['Đổi ngày','Sửa tin','Xóa tin'],['Hủy']],resize_keyboard=True,is_persistent=True)
+MENU=ReplyKeyboardMarkup([['Nhập tin','Xem tổng'],['Đổi người','Sổ vé'],['Nợ cũ','Xem raw'],['Tạo người','Sửa %','Sửa thưởng'],['Xiên ×14','Xiên ×15'],['Đổi ngày','Sửa tin','Xóa tin'],['Hủy']],resize_keyboard=True,is_persistent=True)
 DB=Ledger(os.getenv('BOT_DB','data.sqlite3'))
 B_MENU=ReplyKeyboardMarkup([['BAO TOÀN BỘ','ĐỀ BỘ'],['Hủy']],resize_keyboard=True)
 NAVIGATION={'Nhập tin','Xem tổng','Đổi người','Danh sách tin','Tạo người','Sửa %','Sửa thưởng',
-            'Xiên ×14','Xiên ×15','Đổi ngày','Sửa tin','Xóa tin','Hủy'}
+            'Xiên ×14','Xiên ×15','Đổi ngày','Sửa tin','Xóa tin','Hủy','Nợ cũ','Xem raw','Sổ vé'}
 
 def clear_pending(context):
     for key in ('state','pending_b','delete_id','delete_context'):
@@ -84,6 +85,12 @@ async def handle(update,context):
         if raw in ('Nhập tin','Đổi người'):await choose(update,context);return
         if raw=='Tạo người':context.user_data['state']='create';await reply(update,'Gửi: Khách; HBX hoặc Chủ; Tên chủ');return
         if raw=='Đổi ngày':context.user_data['state']='day';await reply(update,'Gửi ngày dạng 06-10-2026.');return
+        if raw=='Nợ cũ':
+            p=current(update,context);context.user_data['state']='old_balance'
+            await reply(update,f"Nợ cũ của {p['name']} (góc nhìn của mày).\nGửi:\nTHU 2356\nhoặc\nTRẢ 2356\nhoặc\n0\nSố mới thay số dư cũ; áp dụng cho người này khi xem tổng, không tự cộng dồn.");return
+        if raw=='Xem raw':
+            current(update,context);context.user_data['state']='raw'
+            await reply(update,'Gửi ID cần xem raw trong sổ của người/ngày đang chọn.');return
         if raw in ('Sửa %','Sửa thưởng'):
             current(update,context);context.user_data['state']='percent' if raw=='Sửa %' else 'reward'
             await reply(update,'Chỉ đổi cho tin mới. Tin cũ giữ tỷ lệ lúc nhập.\n'+('Gửi 5 % theo Đề; Bao; Xiên 2; Xiên 3,4; Càng\nVí dụ: 5; 3,5; 18; 23; 38' if raw=='Sửa %' else 'Gửi 7 hệ số: Đề; Bao; Xiên 2; Xiên 3; Xiên 4; Càng; Áp càng\nVí dụ: 90; 3,5; 14; 48; 180; 400; 10'));return
@@ -92,9 +99,9 @@ async def handle(update,context):
         if raw in ('Sửa tin','Xóa tin'):
             current(update,context);context.user_data['state']='replace' if raw=='Sửa tin' else 'delete'
             await reply(update,'Gửi ID; nội dung mới' if raw=='Sửa tin' else 'Gửi ID cần xóa; bot sẽ hỏi xác nhận.');return
-        if raw=='Danh sách tin':
+        if raw in ('Danh sách tin','Sổ vé'):
             p=current(update,context);rows=DB.tickets(owner,p['id'],day)
-            await reply(update,'\n'.join(f"ID {r['id']}: {r['raw']}" for r in rows) or 'Chưa có tin.');return
+            await reply(update,render_book(p,day,rows));return
         if raw=='Xem tổng':
             p=current(update,context);rows=DB.tickets(owner,p['id'],day);result=None
             if rows:
@@ -102,7 +109,7 @@ async def handle(update,context):
                     candidate=await asyncio.to_thread(fetch_latest_result,True)
                     if candidate.date==day:result=candidate
                 except ResultError:pass
-            await reply(update,summary(p,day,rows,result));return
+            await reply(update,render_summary(p,day,rows,result));return
         if state=='create':
             side,name=raw.split(';',1);pid=DB.create(owner,side.strip(),name.strip());context.user_data['profile']=pid
             context.user_data.pop('state',None);await reply(update,card(current(update,context)));return
@@ -113,6 +120,13 @@ async def handle(update,context):
         if state=='day':
             context.user_data['day']=datetime.strptime(raw,'%d-%m-%Y').strftime('%d-%m-%Y');context.user_data.pop('state',None);await reply(update,'Ngày: '+context.user_data['day']);return
         p=current(update,context)
+        if state=='old_balance':
+            DB.set_old_balance(owner,p['id'],raw);clear_pending(context)
+            await reply(update,'Đã lưu nợ cũ cho '+p['name']+'. Xem tổng sẽ gộp với tiền hiện tại.');return
+        if state=='raw':
+            rows=[r for r in DB.tickets(owner,p['id'],day) if r['id']==int(raw)]
+            if not rows:raise ValueError('ID không thuộc bảng/ngày đang chọn hoặc đã xóa.')
+            clear_pending(context);await reply(update,f"Raw ID {rows[0]['id']}:\n{rows[0]['raw']}");return
         if state=='b_choice':
             pending=context.user_data.get('pending_b')
             if (not pending or pending['expires']<time.time() or pending['profile']!=p['id']
@@ -144,12 +158,16 @@ async def handle(update,context):
     except ValueError as exc:await reply(update,str(exc))
     except ArithmeticError:await reply(update,'Không tính/chốt tiền: vượt độ chính xác số hỗ trợ. Kiểm tra dữ liệu.')
     except Exception:
-        logging.exception('Xử lý thất bại');await reply(update,'Có lỗi. Chưa xác nhận thao tác; kiểm tra Danh sách tin trước khi gửi lại.')
+        logging.exception('Xử lý thất bại');await reply(update,'Có lỗi. Chưa xác nhận thao tác; kiểm tra Sổ vé trước khi gửi lại.')
+
+async def startup_notice(application):
+    print('================================\nBOT ĐANG CHẠY\nKhông đóng cửa sổ này.\nMở Telegram để sử dụng bot.\n================================')
 
 def main():
-    token=os.getenv('TELEGRAM_BOT_TOKEN','').strip();admin=os.getenv('TELEGRAM_ADMIN_ID','').strip()
-    if not token or not admin.isdigit():raise RuntimeError('Thiếu token hoặc admin ID số.')
-    app=Application.builder().token(token).build();app.add_handler(CommandHandler('start',start))
+    from local_config import validate_token, validate_admin, install_redaction
+    token=validate_token(os.getenv('TELEGRAM_BOT_TOKEN',''));validate_admin(os.getenv('TELEGRAM_ADMIN_ID',''))
+    install_redaction(token)
+    app=Application.builder().token(token).post_init(startup_notice).build();app.add_handler(CommandHandler('start',start))
     app.add_handler(CommandHandler('tong',handle_command_total))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND,handle));app.run_polling()
 async def handle_command_total(update,context):
@@ -161,7 +179,7 @@ async def handle_command_total(update,context):
             candidate=await asyncio.to_thread(fetch_latest_result,True)
             if candidate.date==day:result=candidate
         except ResultError:pass
-        await reply(update,summary(p,day,DB.tickets(update.effective_user.id,p['id'],day),result))
+        await reply(update,render_summary(p,day,DB.tickets(update.effective_user.id,p['id'],day),result))
     except ValueError as exc:await reply(update,str(exc))
     except ArithmeticError:await reply(update,'Không chốt tiền: vượt độ chính xác số hỗ trợ.')
     except Exception:

@@ -1,0 +1,3 @@
+# Preserve exact parser/test bytes on Windows and Linux checkouts.
+* text eol=lf
+*.bat text eol=crlf

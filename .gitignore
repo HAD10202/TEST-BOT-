@@ -4,3 +4,8 @@ __pycache__/
 *.sqlite3-*
 .env
 ket_qua_cache.json
+
+# Local credentials must never be committed.
+*.env
+secrets.env
+unittest.log

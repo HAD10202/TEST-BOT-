@@ -94,6 +94,12 @@ class Ledger:
               profile INTEGER NOT NULL, day TEXT NOT NULL, message INTEGER NOT NULL,
               raw TEXT NOT NULL, config TEXT NOT NULL, UNIQUE(owner,message));
             ''')
+            profile_columns = {r[1] for r in c.execute('PRAGMA table_info(profiles)')}
+            if 'old_balance' not in profile_columns:
+                c.execute("ALTER TABLE profiles ADD COLUMN old_balance TEXT NOT NULL DEFAULT '0'")
+            c.execute('''CREATE TABLE IF NOT EXISTS balance_audit(
+                id INTEGER PRIMARY KEY, profile INTEGER NOT NULL, actor INTEGER NOT NULL,
+                at TEXT NOT NULL, old_amount TEXT NOT NULL, new_amount TEXT NOT NULL)''')
             columns = {r[1] for r in c.execute('PRAGMA table_info(tickets)')}
             if 'entries_snapshot' not in columns:
                 c.execute('ALTER TABLE tickets ADD COLUMN entries_snapshot TEXT')
@@ -123,6 +129,29 @@ class Ledger:
         cfg={'percent': {k:'0' for k in KINDS},'reward':DEFAULT_REWARDS.copy(),'ready':False}
         return self.query('INSERT INTO profiles(owner,side,name,config) VALUES(?,?,?,?)',
                           (owner,side,name.strip(),json.dumps(cfg,ensure_ascii=False)),True)
+    def set_old_balance(self, owner, pid, text):
+        # Explicit admin perspective; this replaces, rather than adds to,
+        # the profile's opening balance. No ticket/config mutation.
+        raw = text.strip().upper()
+        if raw == '0':
+            amount = Decimal(0)
+        else:
+            match = re.fullmatch(r'(THU|TRẢ|TRA)\s+([0-9]+(?:,[0-9]+)?)', raw)
+            if not match:
+                raise ValueError('Gửi THU 2356, TRẢ 2356 hoặc 0. Tiền tính bằng k; số lẻ dùng dấu phẩy, không dùng dấu chấm.')
+            amount = number(match[2])
+            if match[1] != 'THU':
+                amount = amount.copy_negate()
+        at = datetime.now(timezone.utc).isoformat()
+        with closing(sqlite3.connect(self.path)) as c:
+            with c:
+                c.execute('BEGIN IMMEDIATE')
+                row = c.execute('SELECT old_balance FROM profiles WHERE owner=? AND id=?', (owner,pid)).fetchone()
+                if not row:
+                    raise ValueError('Không tìm thấy người này.')
+                c.execute('UPDATE profiles SET old_balance=? WHERE owner=? AND id=?', (str(amount),owner,pid))
+                c.execute('INSERT INTO balance_audit(profile,actor,at,old_amount,new_amount) VALUES(?,?,?,?,?)',
+                          (pid,owner,at,row[0],str(amount)))
     def configure(self, owner, pid, field, text):
         if field not in ('percent', 'reward'):raise ValueError('Trường cấu hình không hợp lệ.')
         p=self.profile(owner,pid);cfg=p['config']

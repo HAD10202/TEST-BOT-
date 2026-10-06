@@ -4,6 +4,7 @@ This is deliberately separate from the frozen 180 unittest cases. Results
 here prove offline wiring/storage only, not real messages or real winnings.
 """
 import asyncio
+from contextlib import closing
 import importlib
 import json
 import os
@@ -144,7 +145,9 @@ def main():
     environment = {key: value for key, value in os.environ.items()
                    if key.lower() not in ('http_proxy', 'https_proxy', 'all_proxy', 'no_proxy')}
     environment.update(TELEGRAM_ADMIN_ID='1', TELEGRAM_BOT_TOKEN='123456:CI_ONLY_NOT_A_REAL_TOKEN')
-    with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, environment, clear=True), \
+    # Create the event loop before the socket blockade: Windows may create a
+    # loopback socket pair for its internal wake-up pipe. No service is called.
+    with closing(asyncio.new_event_loop()) as loop, tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, environment, clear=True), \
             patch.object(socket.socket, 'connect', forbid_network), \
             patch.object(socket.socket, 'connect_ex', forbid_network), \
             patch.object(socket, 'create_connection', forbid_network):
@@ -156,17 +159,22 @@ def main():
         bot = importlib.import_module('bot')
         require(isinstance(bot.MENU, telegram.ReplyKeyboardMarkup), 'Bot used mocked Telegram import')
         passed('bot.py real import')
-        # run.py invokes main at import time. Mock only polling; actually build
-        # the PTB Application and register handlers using the existing main.
+        from zoneinfo import ZoneInfo
+        require(str(ZoneInfo('Asia/Ho_Chi_Minh')) == 'Asia/Ho_Chi_Minh', 'Timezone not available')
+        passed('Windows-compatible timezone dependency')
+        # run.py import is passive. Mock only polling; explicitly start the
+        # real Application and register the production handlers.
         with patch.object(Application, 'run_polling', autospec=True) as polling:
-            importlib.import_module('run')
+            launcher = importlib.import_module('run')
+            polling.assert_not_called()
+            require(launcher.main([]) == 0, 'Launcher returned an error')
             polling.assert_called_once()
             application = polling.call_args.args[0]
         require(isinstance(application, Application), 'Startup did not construct real Application')
         passed('run.py import and handler registration (polling mocked)')
-        asyncio.run(handler_flow(bot, application, telegram))
+        loop.run_until_complete(handler_flow(bot, application, telegram))
     print('AZ24 LIVE: NOT RUN; TELEGRAM LIVE: NOT RUN')
-    print('RUNTIME SMOKE: PASS; separate from 180 frozen unittest cases')
+    print('RUNTIME SMOKE: PASS; separate from 269 unittest cases')
     if os.getenv('GITHUB_STEP_SUMMARY'):
         with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as output:
             output.write('\nRuntime smoke (real dependency; live services disabled):\n\n')
