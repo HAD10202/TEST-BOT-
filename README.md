@@ -1,16 +1,37 @@
-# Bot tính tiền khách/chủ — bản 1
+# Bot tính tiền khách/chủ — bản vá an toàn (chưa dùng production)
 
-Chạy Windows: mở CHAY_BOT_WINDOWS.bat. Chạy macOS: mở CHAY_BOT_MACOS.command (nếu bị chặn, chạy `bash CHAY_BOT_MACOS.command` trong thư mục này).
-Máy cần Python 3.11+ và mạng để cài thư viện. Dán token và nhập Telegram user ID của người quản lý. Token không được ghi vào source. Chỉ user ID này được dùng bot trong chat riêng.
+**NOT READY FOR PRODUCTION.** Đây là bản để kiểm tra trước khi dùng tiền thật. Xem REPORT.md về test, conflict và việc chưa kiểm chứng.
+
+## Chạy trên Windows: chỉ mở file
+
+Máy cần Python 3.11 trở lên và Internet. Giải nén source vào một thư mục riêng.
+
+1. Double-click **CHAY_BOT_WINDOWS.bat**. Bot tự chuẩn bị thư viện nếu cần.
+2. Lần đầu: copy token từ BotFather, **Ctrl+V rồi Enter**. Nhập Telegram Admin ID rồi Enter. Token có thể hiện lúc nhập; không chia sẻ ảnh màn hình này.
+3. Thấy “Đã lưu cấu hình”, nhấn Enter để chạy. Khi thấy **BOT ĐANG CHẠY**, mở Telegram. Giữ cửa sổ này mở.
+4. Những lần sau chỉ double-click **CHAY_BOT_WINDOWS.bat**; không cần nhập lại token hoặc Admin ID.
+5. Muốn đổi token hoặc Admin ID: double-click **CAI_DAT_BOT_WINDOWS.bat**, nhập lại cả hai. Tắt cửa sổ bot cũ rồi chạy lại.
+
+Token lưu riêng ở `%APPDATA%\TEST-BOT\secrets.env`, ngoài source. Tải source mới vẫn giữ cấu hình trên cùng tài khoản Windows. Không gửi file đó cho người khác, đưa vào ZIP hoặc GitHub. Token lỗi do cách dán sẽ bị chặn trước khi gọi Telegram. Admin ID cấu hình là OWNER. OWNER có thể cấp quyền cho người khác qua menu Người sử dụng; bot vẫn chỉ dùng trong chat riêng.
+
+Nếu báo token không hợp lệ: mở CAI_DAT_BOT_WINDOWS.bat để dán lại. Nếu báo không kết nối Telegram: kiểm tra Internet rồi mở lại file chạy. Không cần mở PowerShell hay gõ lệnh.
+
+macOS: mở CHAY_BOT_MACOS.command (nếu bị chặn, chạy `bash CHAY_BOT_MACOS.command` trong thư mục này). Setup cũng dùng nhập bình thường và lưu ngoài source trong `~/Library/Application Support/TEST-BOT/secrets.env`.
 
 ## Dùng bot
-1. /start → Tạo người → `Khách; HBX` hoặc `Chủ; Tên chủ`.
-2. Sửa % → `5; 3,5; 18; 23; 38`. Thứ tự Đề; Bao; Xiên 2; Xiên 3,4; Càng.
+1. /start → Tạo người → `Khách HBX` hoặc `Chủ Tên chủ`. Tên được có khoảng trắng; `Khach`/`Chu` cũng dùng được. Cách cũ `Khách; HBX` vẫn được hỗ trợ.
+2. Sửa % → `5 3,5 18 21 38`. Thứ tự Đề; Bao; Xiên 2; Xiên 3,4; Càng. Gửi đúng 5 số cách nhau bằng khoảng trắng; dấu phẩy trong số là phần thập phân (`5,5` là một số). Cách cũ `5; 3,5; 18; 21; 38` vẫn dùng được.
 3. Chọn Xiên ×14 hoặc ×15; đặt % riêng cho mỗi bộ. Trước khi chuyển bộ, kiểm tra bộ hiện trên màn hình. Không dùng bộ chưa đặt %.
-4. Sửa thưởng → 7 hệ số Đề; Bao; Xiên 2; Xiên 3; Xiên 4; Càng; Áp càng. Ví dụ `90; 3,5; 15; 48; 180; 400; 10`.
+4. Sửa thưởng → 7 hệ số Đề; Bao; Xiên 2; Xiên 3; Xiên 4; Càng; Áp càng. Ví dụ `90 3,5 15 48 180 400 10`. Gửi đúng 7 số cách nhau bằng khoảng trắng; dấu phẩy là phần thập phân. Xiên 2 chỉ nhận 14 hoặc 15. Cách cũ `90;3,5;15;48;180;400;10` vẫn dùng được.
 5. Nhập tin → chọn tên hoặc ID → gửi liên tục các tin theo cú pháp bot gốc, ví dụ `Đề 12=10k`, `X 12-34=50k`.
 6. Đổi ngày nếu cần. Xem tổng lấy kết quả mới nhất, chỉ tính thưởng khi ngày kết quả khớp ngày bảng. Nếu chưa có đúng ngày, chỉ hiện hàng và %, chưa chốt thu/trả.
-7. Danh sách tin xem ID; Sửa tin gửi `ID; nội dung mới`. Sửa giữ tỷ lệ gốc. Xóa tin yêu cầu gõ XÓA.
+7. Sổ vé xem ID và tiền từng loại, không hiện nguyên tin; Xem raw → nhập ID để xem riêng nội dung gốc. Sửa tin gửi `ID; nội dung mới`. Sửa giữ tỷ lệ gốc. Xóa tin yêu cầu gõ XÓA.
+
+Nếu nhập `B91=175k` hoặc `b20b500k`, bot hỏi **BAO TOÀN BỘ / ĐỀ BỘ**; chưa chọn thì chưa lưu. Đổi người, ngày, tỷ lệ, bấm menu khác hoặc Hủy sẽ hủy lựa chọn. Lựa chọn hết hạn sau 5 phút. Nhiều dòng B sẽ được hỏi lần lượt.
+
+Tin có phần chưa hiểu: bot hiện phần đã hiểu và phần chưa hiểu, **không lưu cả tin**. Sửa lại rồi gửi; bot chưa hỗ trợ lưu một phần. `1tr5` và `1tr500` đều là 1.500k; `10.000` vẫn là 10.000k. Các giá chưa có rule như `1tr50` bị từ chối. `bằng/bang/băng/bg` dùng ghi giá; `bảng` không phải dấu bằng.
+
+Số 4 chữ số chỉ tách khi có danh sách rõ: ít nhất hai số 2 chữ số, có dấu phẩy/chấm, tất cả token dài 2 hoặc 4. Ví dụ `83,84,8968 98=50n`. `9497=50` hoặc `66 1000 68=50` bị từ chối. Range chỉ nhận đầu/đít tăng như `từ đầu 3 đến 8 ghép đít 3 đến 8=50`; range giảm bị từ chối; dấu `-` vẫn là dấu ngăn cách cũ.
 
 Một người dùng cả Xiên ×14 và ×15: chọn bộ rồi gửi từng tin riêng. Một tin không trộn hai bộ. Tổng hiển thị hai dòng riêng. Mỗi bộ lưu bộ % riêng; hệ số khác Xiên 2 dùng chung theo profile.
 
@@ -21,7 +42,39 @@ Tiền dùng đơn vị k (nghìn đồng), giống parser gốc. Giữ số l�
 ## Dữ liệu và giới hạn
 Dữ liệu lưu trong data.sqlite3 cạnh chương trình, vẫn còn sau khi tắt. Sao lưu file này khi bot đã tắt; ZIP/source không chứa dữ liệu riêng.
 Không chạy hai cửa sổ cùng token. Bot chỉ nhận chữ; chuyển giọng nói là chức năng điện thoại.
-Bản này chưa có nợ cũ, thu/trả đã thanh toán, chốt ngày, tổng lợi nhuận, bảng thu chi sheet 3, lịch sử sửa/xóa đầy đủ hoặc kết quả nhiều ngày. Tập trung đúng giai đoạn tính từng khách/chủ theo ngày.
+Bản này chưa có theo dõi thu/trả đã thanh toán, chốt/khóa ngày, tổng lợi nhuận, bảng thu chi sheet 3 hoặc kết quả nhiều ngày. Sửa/xóa vé được lưu lịch sử trong SQLite: raw cũ/mới, thời gian UTC, admin thực hiện. Xóa mềm giữ vé cũ để kiểm tra; không cộng lại message ID đã xóa.
 Tên và % thật cần người dùng thêm bằng menu; không tự suy các tỷ lệ từ bảng đang làm dở.
 
-calculator.py và results.py giữ nguyên từ ZIP gốc. legacy_bot.py giữ bot gốc tham khảo. Bộ kiểm thử cũ kiểm tra parser và menu cũ, không chứng minh menu mới chạy thật. Xem REPORT.md để biết kiểm chứng.
+## Nâng cấp dữ liệu cũ
+1. Tắt bot, sao lưu nguyên file `data.sqlite3` trước khi nâng cấp.
+2. Bản mới thêm cột lưu cách hiểu vé và dấu xóa mềm. Không tự tính lại vé cũ bằng parser mới.
+3. Vé cũ chưa có cách hiểu đã lưu sẽ chặn tổng. Vào Sổ vé, dùng Xem raw để kiểm tra từng vé rồi Sửa tin với nội dung được xác nhận; thao tác này giữ tỷ lệ gốc và có audit. Đặc biệt rà lại `1tr5` từng được tính sai ở bản cũ.
+4. Nếu rollback, tắt bot rồi phục hồi **cả source cũ và database đã sao lưu**. Không chạy source cũ với DB mới: source cũ không hiểu xóa mềm và có thể cộng lại vé đã xóa.
+
+Vé mới lưu cả cách hiểu và cấu hình; đổi parser/profile không đọc lại raw của vé đó. Phép tính trung gian dùng Decimal 80 chữ số và báo lỗi nếu mất chữ số; % trên màn hình làm tròn nguyên k cho dễ nhìn; số % gốc vẫn dùng để tính. Tiền thu/trả cuối làm tròn sau khi cộng nợ cũ. Dữ liệu vượt khả năng số hỗ trợ bị chặn.
+
+`results.py`, `legacy_bot.py` và toàn bộ test cũ giữ nguyên. `legacy_bot.py` chỉ là tham khảo, **không dùng để ghi/chốt tiền production**. Khi tích hợp module, chỉ lưu qua Ledger.add/replace: `calculate()` giữ behavior B mặc định Bao cho tương thích test cũ, còn Ledger bắt buộc xác nhận B.
+
+Kiểm tra offline: `python -m compileall -q .` và `python -m unittest discover -v`. Test UI mô phỏng Telegram; không chứng minh bot chạy thật hoặc nguồn kết quả đúng.
+
+## Nợ cũ và tổng mới
+
+Chọn đúng người → **Nợ cũ** → gửi `THU 2356` (người đó nợ mình 2.356k), `TRẢ 2356` (mình nợ người đó), hoặc `0` để bỏ nợ cũ. Đây là **thay số dư**, không phải cộng thêm mỗi lần gửi. Tiền là k; số lẻ dùng dấu phẩy, không dùng dấu chấm ngăn nghìn.
+
+Nợ cũ thuộc riêng từng người, theo góc nhìn admin cho cả Khách và Chủ. Khi Xem tổng có kết quả đúng ngày, bot cộng số dư ngày và nợ cũ chính xác rồi mới làm tròn. Nợ cũ không tự hết khi sang ngày hay xem tổng: khi đã thanh toán/cập nhật, tự nhập lại số dư hoặc 0. Đây không phải sổ giao dịch đã thanh toán.
+
+Xem tổng chỉ hiện loại có tiền hàng. Khối THƯỞNG chỉ hiện loại trúng. X3 và AC hiện tiền gốc, ghi rõ hệ số và tiền thưởng thực tính vào tổng. Các loại khác hiện tiền thưởng thực. Sổ vé đọc cách hiểu đã lưu, không đọc lại raw; ×14/×15 lấy từ tỷ lệ lúc lưu từng tin.
+
+Trước nâng cấp, tắt bot và sao lưu DB. Migration thêm `profiles.old_balance` mặc định 0 và lịch sử sửa số dư; không thay vé/tỷ lệ cũ. Test checkpoint và các giới hạn kiểm chứng xem DISPLAY_SETUP_REPORT.md.
+
+## Nhiều người dùng chung bot
+
+OWNER là Telegram Admin ID đã nhập khi cài đặt. OWNER mở **👥 Người sử dụng** → **➕ Thêm người** rồi dán một hoặc nhiều Telegram User ID (xuống dòng, dấu phẩy hoặc khoảng trắng đều được). Có ID sai thì bot báo rõ và không lưu bất kỳ ID nào trong batch. ID đã có không tạo bản trùng.
+
+Gỡ quyền: **➖ Xóa người** → gửi các ID → kiểm tra danh sách → gửi **XÓA QUYỀN**. OWNER không thể bị gỡ. Người vừa bị gỡ không đọc/ghi được bot nữa. Nhân viên không thấy menu quản lý này và cũng không dùng được bằng cách tự gõ tên nút.
+
+Mọi người được cấp quyền dùng **chung toàn bộ Khách/Chủ, vé, %, thưởng, nợ cũ, tổng và ngày đang tính** trong cùng SQLite của OWNER. Tên đang chọn và thao tác chờ riêng cho từng người. Khi một người đổi ngày chung, các thao tác chờ của người khác bị hủy khi họ gửi tin tiếp theo; bot báo ngày mới. Ngày chung được lưu qua lần khởi động lại, không tự chốt/chuyển ngày.
+
+Nếu người khác vừa đổi tỷ lệ/bộ ×14/×15, người đang nhập thấy cảnh báo và tỷ lệ mới, rồi gửi lại tin. Vé cũ vẫn giữ tỷ lệ lúc nhập. Nếu cùng sửa/xóa một phiên bản vé, chỉ một thao tác được lưu; người còn lại phải mở lại Sửa tin/Xóa tin để xem bản mới. Audit ghi đúng Telegram ID người thực hiện, không thay thành ID OWNER.
+
+Không nhập token hay đổi OWNER qua Telegram. Chức năng setup token vẫn chỉ nằm trên máy chạy bot. Sau nâng cấp, dùng CHAY_BOT_WINDOWS.bat/run.py như hiện tại; không dùng legacy_bot.py để ghi dữ liệu. Trước nâng cấp: tắt bot và sao lưu DB. Chi tiết migration/giới hạn xem MULTI_USER_REPORT.md.

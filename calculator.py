@@ -3,7 +3,8 @@ from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, Inexact, localcontext
+from functools import wraps
 from itertools import combinations
 from typing import Iterable
 
@@ -18,6 +19,17 @@ RATES = {
 }
 
 AP_CANG_RATE = Decimal("10")
+
+
+def exact_decimal(function):
+    """Fail closed if an intermediate money operation would lose digits."""
+    @wraps(function)
+    def wrapped(*args, **kwargs):
+        with localcontext() as ctx:
+            ctx.prec = 80
+            ctx.traps[Inexact] = True
+            return function(*args, **kwargs)
+    return wrapped
 
 
 def _two_digits(values: Iterable[int]) -> list[str]:
@@ -89,6 +101,11 @@ def ascii_text(text: str) -> str:
 
 
 def normalize(text: str) -> str:
+    # Match exact accented words BEFORE accent removal: bảng is not bằng.
+    text = re.sub(r"[^\W\d_]+", lambda m: "__unknown_price_word__"
+                  if ascii_text(m[0]).lower() == "bang" and m[0].lower() not in ("bang", "bằng", "băng")
+                  else m[0], text)
+    text = re.sub(r"(?<!\w)(?:bằng|bang|băng|bg)(?=\s*\d)", "=", text, flags=re.I)
     s = ascii_text(text).lower().replace("**", "")
     s = s.translate(str.maketrans({
         "（": "(", "）": ")", "［": "[", "］": "]",
@@ -152,10 +169,26 @@ def normalize(text: str) -> str:
 
 
 def parse_money(raw: str) -> Decimal:
+    try:
+        return _parse_money(raw)
+    except ArithmeticError:
+        return Decimal('0')
+
+
+@exact_decimal
+def _parse_money(raw: str) -> Decimal:
     s = normalize(raw).replace(" ", "")
     joined_million = re.fullmatch(r"(\d+)(?:tr|m)(\d+)", s)
     if joined_million:
-        return Decimal(joined_million.group(1)) * 1000 + Decimal(joined_million.group(2))
+        suffix = joined_million.group(2)
+        # Defined shorthand only: 1tr5 and 1tr500. Two/four-digit tails
+        # have no confirmed rule; fail closed rather than invent a scale.
+        if len(suffix) not in (1, 3):
+            return Decimal("0")
+        extra = Decimal(suffix) * (100 if len(suffix) == 1 else 1)
+        return Decimal(joined_million.group(1)) * 1000 + extra
+    if not re.fullmatch(r"\d+(?:[.,]\d+)*(?:tr|m|k|n)?", s):
+        return Decimal("0")
     multiplier = Decimal("1")
     if s.endswith("tr") or s.endswith("m"):
         multiplier = Decimal("1000")
@@ -170,7 +203,8 @@ def parse_money(raw: str) -> Decimal:
         # Giữ dấu phẩy thập phân cho các dạng như 1,5tr.
         s = s.replace(",", ".")
     try:
-        return Decimal(s) * multiplier
+        value = Decimal(s) * multiplier
+        return value if value.is_finite() else Decimal("0")
     except Exception:
         return Decimal("0")
 
@@ -187,10 +221,12 @@ class Entry:
     ticket_groups: tuple[tuple[str, ...], ...] = ()
 
     @property
+    @exact_decimal
     def stake(self) -> Decimal:
         return self.unit_stake * self.ticket_count
 
     @property
+    @exact_decimal
     def reward(self) -> Decimal:
         # Một dàn có nhiều vé nhưng chỉ lấy giá của mỗi vé nhân tỷ lệ thưởng.
         # Ví dụ tổng chẵn 50 số, mỗi số 50k: vốn 2.500k nhưng thưởng 50×90.
@@ -202,6 +238,7 @@ class Calculation:
     entries: list[Entry]
     rejected: list[str]
 
+    @exact_decimal
     def totals(self) -> dict[str, tuple[Decimal, Decimal, int, Decimal]]:
         result: dict[str, tuple[Decimal, Decimal, int, Decimal]] = {}
         for kind in RATES:
@@ -233,7 +270,7 @@ class BChoiceSuggestion:
 
 
 CATEGORY_RE = re.compile(
-    r"(?<!\w)(de|bao|cang|c(?=\s|:|\d)|xq2|xq|xien(?:\s*[234](?!\d))?|x\s*[234](?=\s|[:=(\[])|x(?=\s|[:=(\[]))",
+    r"(?<!\w)(de(?![a-z])|bao(?![a-z])|cang(?![a-z])|c(?=\s|:|\d)|xq2|xq|xien(?:\s*[234](?!\d))?|x\s*[234](?=\s|[:=(\[])|x(?=\s|[:=(\[]))",
     re.I,
 )
 # Tiền không có đơn vị chỉ nhận số nguyên. Dấu phẩy/chấm thập phân chỉ
@@ -244,7 +281,7 @@ MONEY_TOKEN = (
     r"\d+\s*[kn]?)"
 )
 PER_UNIT_SUFFIX = (
-    r"(?:\s*(?:/\s*)?(?:(?:1\s*/?\s*)?(?:so|con)|moi\s*(?:so|con)|m[sc]))?"
+    r"(?:\s*(?:/\s*)?(?:(?:1\s*/?\s*)?(?:so|con|cap)|moi\s*(?:so|con)|m[sc]))?"
 )
 DEDUPE_WORDS = (
     r"(?:bo\s+(?:so\s+)?trung(?:\s+nhau)?|"
@@ -325,6 +362,35 @@ def _parse_de_numbers_base(body: str) -> tuple[list[str], str | None]:
     s = re.sub(r"\bdau(?=dit)", "dau ", s)
     s = re.sub(r"\bduoi(?=(?:cao|to|thap|be|nho|chan|le)\b)", "dit ", s)
     s = re.sub(r"\b(dau|dit)(?=(?:cao|to|thap|be|nho|chan|le)\b)", r"\1 ", s)
+    s = re.sub(r"\bdau\s*,\s*dit\b", "dau dit", s)
+    if '&' in s or ('+' in s and not re.fullmatch(r'dau\s*\+\s*dit\s*[0-9,./:;\- ]+', s)):
+        return [], "dấu nối chưa được hỗ trợ trong ngữ cảnh này"
+    # Only explicit ascending verbal ranges; '-' remains a legacy separator.
+    if re.search(r"\b(?:tu|den)\b", s):
+        ranged_operand = r'[0-9]\s+den\s+[0-9]'
+        if not re.fullmatch(rf'(?:tu\s+)?(?:dau|dit)\s+{ranged_operand}(?:\s+ghep\s+(?:dau|dit)\s+{ranged_operand})?', s):
+            return [], "chỉ nhận khoảng tăng rõ ràng trong đầu/đít"
+        s = re.sub(r"^tu\s+(?=dau|dit)", "", s)
+        bad_range = False
+        def expand_range(match):
+            nonlocal bad_range
+            first, last = int(match[1]), int(match[2])
+            if first > last:
+                bad_range = True
+                return " "
+            return " ".join(str(n) for n in range(first, last + 1))
+        s = re.sub(r"(?<!\d)([0-9])\s+den\s+([0-9])(?!\d)", expand_range, s)
+        if bad_range or re.search(r"\b(?:tu|den)\b", s):
+            return [], "khoảng đầu/đít không rõ hoặc đi xuống; chưa có rule"
+    # A comma/dot-delimited list containing at least two explicit two-digit
+    # tokens proves list context. Do not apply to bare amounts or ABC/đảo.
+    tokens = re.findall(r"\d+", s)
+    explicit_list = (bool(re.fullmatch(r"[\d\s,.]+", s))
+                     and sum(len(t) == 2 for t in tokens) >= 2
+                     and bool(re.search(r"\d{2}\s*[,.]\s*\d", s))
+                     and all(len(t) in (2, 4) for t in tokens))
+    if explicit_list:
+        s = re.sub(r"(?<!\d)(\d{2})(\d{2})(?!\d)", r"\1,\2", s)
 
     # Ghép phải được xử lý trước các dàn đầu/đít độc lập.
     # Giữ từng lần xuất hiện của chữ số trong danh sách ghi trực tiếp.
@@ -377,52 +443,52 @@ def _parse_de_numbers_base(body: str) -> tuple[list[str], str | None]:
         return DAN_SUM_LOW[:], None
     if named_compact == "keplech":
         return DAN_KEP_LECH[:], None
-    if "tongduoi10" in compact or "tongnhohon10" in compact:
+    if compact in ("tongduoi10", "tongnhohon10"):
         return DAN_SUM_UNDER_10[:], None
-    if "tongtren10" in compact or "tonglonhon10" in compact:
+    if compact in ("tongtren10", "tonglonhon10"):
         return DAN_SUM_OVER_10[:], None
     multi_dan = re.fullmatch(r"dan\s*(36|44|49|56)(?:\s*[,;./:-]\s*|\s+)(36|44|49|56)", s)
     if multi_dan:
         mapping = {"36": DAN_36, "44": DAN_44, "49": DAN_49, "56": DAN_56}
         return mapping[multi_dan.group(1)][:] + mapping[multi_dan.group(2)][:], None
-    if "dan44" in compact:
+    if compact == "dan44":
         return DAN_44[:], None
-    if "dan48" in compact:
+    if compact == "dan48":
         return [], "Dàn 48 không được hỗ trợ"
-    if "dan49" in compact:
+    if compact == "dan49":
         return DAN_49[:], None
-    if "dan36" in compact:
+    if compact == "dan36":
         return DAN_36[:], None
-    if "dan56" in compact:
+    if compact == "dan56":
         return DAN_56[:], None
 
-    if re.search(r"(?:dan\s*)?(?:chan\s*le|cl)(?:\b|$)", s):
+    if re.fullmatch(r"(?:dan\s*)?(?:chan\s*le|cl)", s):
         return EVEN_ODD[:], None
-    if re.search(r"(?:dan\s*)?(?:le\s*chan|lc)(?:\b|$)", s):
+    if re.fullmatch(r"(?:dan\s*)?(?:le\s*chan|lc)", s):
         return ODD_EVEN[:], None
-    if re.search(r"(?:dan\s*)?(?:le\s*le|ll)(?:\b|$)", s):
+    if re.fullmatch(r"(?:dan\s*)?(?:le\s*le|ll)", s):
         return ODD_ODD[:], None
-    if re.search(r"(?:dan\s*)?(?:chan\s*chan|cc)(?:\b|$)", s):
+    if re.fullmatch(r"(?:dan\s*)?(?:chan\s*chan|cc)", s):
         return EVEN_EVEN[:], None
-    if re.search(r"tong\s*chan", s):
+    if re.fullmatch(r"tong\s*chan", s):
         return _dedupe(n for digit in (0, 2, 4, 6, 8) for n in SUM_GROUPS[digit]), None
-    if re.search(r"tong\s*le", s):
+    if re.fullmatch(r"tong\s*le", s):
         return _dedupe(n for digit in (1, 3, 5, 7, 9) for n in SUM_GROUPS[digit]), None
-    if re.search(r"\bdau\s*(?:cao|to)\b", s):
+    if re.fullmatch(r"dau\s*(?:cao|to)", s):
         return DAN_HEAD_HIGH[:], None
-    if re.search(r"\bdau\s*(?:thap|be|nho)\b", s):
+    if re.fullmatch(r"dau\s*(?:thap|be|nho)", s):
         return DAN_HEAD_LOW[:], None
-    if re.search(r"\bdit\s*(?:cao|to)\b", s):
+    if re.fullmatch(r"dit\s*(?:cao|to)", s):
         return DAN_TAIL_HIGH[:], None
-    if re.search(r"\bdit\s*(?:thap|be|nho)\b", s):
+    if re.fullmatch(r"dit\s*(?:thap|be|nho)", s):
         return DAN_TAIL_LOW[:], None
-    if re.search(r"\bdau\s*chan\b", s):
+    if re.fullmatch(r"dau\s*chan", s):
         return DAN_HEAD_EVEN[:], None
-    if re.search(r"\bdau\s*le\b", s):
+    if re.fullmatch(r"dau\s*le", s):
         return DAN_HEAD_ODD[:], None
-    if re.search(r"\bdit\s*chan\b", s):
+    if re.fullmatch(r"dit\s*chan", s):
         return DAN_TAIL_EVEN[:], None
-    if re.search(r"\bdit\s*le\b", s):
+    if re.fullmatch(r"dit\s*le", s):
         return DAN_TAIL_ODD[:], None
 
     result: list[str] = []
@@ -494,6 +560,9 @@ def _parse_de_numbers_base(body: str) -> tuple[list[str], str | None]:
 
     reverse_mode = bool(re.search(r"\b(?:dao|cap)\b", s))
     s = re.sub(r"\b(?:dao|cap)\b", " ", s)
+    remainder = re.sub(r"\d+|\bva\b", " ", s).strip(" \n\r\t,;:./-")
+    if remainder:
+        return [], f"nội dung chưa rõ: {remainder}"
     tokens = re.findall(r"(?<!\d)\d+(?!\d)", s)
     for token in tokens:
         if len(token) <= 2:
@@ -555,6 +624,13 @@ def parse_cang_numbers(body: str) -> tuple[list[str], str | None]:
 GROUP_RE = re.compile(r"[\(\[]([^\)\]]+)[\)\]]")
 
 
+def _regular_body_valid(body: str) -> bool:
+    s = re.sub(r"\bva\b", " ", body)
+    tokens = re.findall(r"\d+", s)
+    return (bool(tokens) and all(len(t) <= 2 for t in tokens)
+            and not re.sub(r"\d+", " ", s).strip(" \n\r\t,;:./-()[]"))
+
+
 def _clean_ticket_body(body: str) -> str:
     s = normalize(body)
     s = re.sub(r"/?\s*1\s*(?:so|cap)\b", " ", s)
@@ -565,6 +641,8 @@ def _clean_ticket_body(body: str) -> str:
 def parse_xien_groups(body: str) -> tuple[list[tuple[str, ...]], str | None]:
     """Đọc Xiên thường; mỗi ngoặc là một vé và không sinh tổ hợp."""
     s = _clean_ticket_body(body)
+    if not _regular_body_valid(s):
+        return [], "danh sách Xiên có nội dung chưa rõ"
     matches = list(GROUP_RE.finditer(s))
     if matches:
         outside = GROUP_RE.sub(" ", s)
@@ -591,6 +669,8 @@ def parse_xien_groups(body: str) -> tuple[list[tuple[str, ...]], str | None]:
 def parse_quay_sets(body: str) -> tuple[list[tuple[str, ...]], str | None]:
     """Đọc từng dàn Xiên quây; tổ hợp chỉ được sinh từ các dàn này."""
     s = _clean_ticket_body(body)
+    if not _regular_body_valid(s):
+        return [], "danh sách Xiên quây có nội dung chưa rõ"
     matches = list(GROUP_RE.finditer(s))
     if matches:
         outside = GROUP_RE.sub(" ", s)
@@ -630,7 +710,7 @@ def _category_segments(text: str) -> list[tuple[str, str]]:
         return [("de", text)]
     result: list[tuple[str, str]] = []
     prefix = text[:matches[0].start()].strip()
-    if prefix and MONEY_RE.search(prefix):
+    if prefix.strip(" \n\r\t,;:.-"):
         result.append(("de", prefix))
     result.extend([
         (match.group(1), text[match.end(): matches[i + 1].start() if i + 1 < len(matches) else len(text)])
@@ -822,6 +902,9 @@ def calculate(raw: str) -> Calculation:
                     rejected.append(f"{label} {body} = {money_match.group('amount')} ({de_error})")
                     continue
             else:
+                if not _regular_body_valid(body):
+                    rejected.append(f"{label} {body} (danh sách số chưa rõ)")
+                    continue
                 numbers = parse_regular_numbers(body)
             if label_norm == "de" and dedupe_requested:
                 numbers = _dedupe(numbers)
@@ -832,6 +915,10 @@ def calculate(raw: str) -> Calculation:
             if kind in {"Đề", "Bao"}:
                 count = len(numbers)
             entries.append(Entry(kind, tuple(numbers), stake, count, f"{label} {body}".strip()))
+
+        tail = segment[start:].strip(" \n\r\t,;:.-")
+        if tail:
+            rejected.append(f"{label} phần sau giá chưa rõ: {tail}")
 
     return Calculation(entries, rejected)
 
@@ -960,7 +1047,7 @@ def format_amount(value: Decimal) -> str:
     if value == value.to_integral():
         raw = f"{int(value):,}".replace(",", ".")
     else:
-        raw = f"{value.normalize():f}".replace(".", ",")
+        raw = f"{value:f}".rstrip('0').rstrip('.').replace(".", ",")
     return f"{raw}k"
 
 
@@ -988,6 +1075,7 @@ def format_result(result: Calculation) -> str:
     return message
 
 
+@exact_decimal
 def format_check(result: Calculation) -> str:
     """Hiển thị bot đã hiểu gì mà không tải hoặc đối chiếu kết quả XSMB."""
     if not result.entries:
