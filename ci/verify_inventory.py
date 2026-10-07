@@ -12,6 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 BASE_COMMIT = "8369ba4dff6bbd8fc1facc75bdb189cf725e8020"
 FROZEN_BLOBS = {
+    'workspace.py': '9ab8dbbedad393c81012af423c86b87a75bbf894',
+    'test_multi_user.py': '92d9dde50515aa1e27798b7f7d32d81cb42e962e',
     'test_checkpoint_ui.py': 'c7ecdc1cc5dd97087cb4d5b37a58014058a8ad3d',
     'test_windows_setup.py': 'd77307121f659053fa5c555724a9e6a5b797a354',
     'presentation.py': 'c825ad0d59363e87feeaf0703b3ef5b9dbe6da43',
@@ -55,7 +57,7 @@ PROTECTED_FUNCTIONS = {'accounting.py': {'number': '55550486495fb679940eb4cb6aa8
 EXPECTED = {
     "test_calculator": 67, "test_bot_menu": 5, "test_accounting": 5, "test_ui": 1,
     "test_safety_parser": 62, "test_safety_accounting": 29, "test_safety_ui": 11,
-    "test_display_debt": 43, "test_windows_setup": 34, "test_checkpoint_ui": 12, "test_multi_user": 73,
+    "test_display_debt": 43, "test_windows_setup": 34, "test_checkpoint_ui": 12, "test_multi_user": 73, "test_quick_input": 32,
 }
 SAFETY = {"test_safety_parser", "test_safety_accounting", "test_safety_ui"}
 OLD = {"test_calculator", "test_bot_menu", "test_accounting", "test_ui"}
@@ -149,17 +151,17 @@ def main():
         require(not getattr(method, "__unittest_expecting_failure__", False),
                 f"Expected-failure test: {test.id()}")
     require(actual == EXPECTED, f"Test inventory changed: {actual}, expected {EXPECTED}")
-    require(sum(actual[m] for m in OLD) == 78 and sum(actual[m] for m in SAFETY) == 102 and len(ids) == 342,
-            "Expected 78 old + 102 safety + 89 UI/debt/Windows + 73 multi-user = 342")
+    require(sum(actual[m] for m in OLD) == 78 and sum(actual[m] for m in SAFETY) == 102 and len(ids) == 374,
+            "Expected 78 old + 102 safety + 89 UI/debt/Windows + 73 multi-user + 32 quick input = 374")
     print("FROZEN SOURCE/TEST FILES: PASS (base " + BASE_COMMIT + ")")
     print("FIXTURE ASSERTIONS / BUSINESS DATA: PASS (original full-file blobs after close-only normalization)")
-    print("DISCOVERY: OLD 78 / SAFETY 102 / CHECKPOINT 89 / MULTI USER 73 / TOTAL 342; no skips or expected failures")
+    print("DISCOVERY: OLD 78 / SAFETY 102 / CHECKPOINT 89 / MULTI USER 73 / QUICK INPUT 32 / TOTAL 374; no skips or expected failures")
     if args.results:
         log = args.results.read_text(encoding="utf-8")
         passed = re.findall(r"^\S+ \(([^)]+)\) \.\.\. ok$", log, re.M)
-        require(len(passed) == 342 and set(passed) == set(ids),
-                "Actual passing unittest IDs differ from the 342 discovered IDs")
-        require(re.search(r"^Ran 342 tests in ", log, re.M), "Missing 342-test execution summary")
+        require(len(passed) == 374 and set(passed) == set(ids),
+                "Actual passing unittest IDs differ from the 374 discovered IDs")
+        require(re.search(r"^Ran 374 tests in ", log, re.M), "Missing 374-test execution summary")
         require(re.search(r"^OK\s*$", log, re.M), "Missing clean OK summary")
         require(not re.search(r"\.\.\. (?:skipped|expected failure|unexpected success)", log),
                 "Tests skipped or expected-failed during execution")
@@ -170,7 +172,8 @@ def main():
                    "| SAFETY TESTS | PASS 102 / FAIL 0 |\n"
                    "| NEW UI/DEBT/WINDOWS TESTS | PASS 89 / FAIL 0 |\n"
                    "| MULTI USER TESTS | PASS 73 / FAIL 0 |\n"
-                   "| TOTAL | PASS 342 / FAIL 0; skipped 0 |\n"
+                   "| QUICK INPUT TESTS | PASS 32 / FAIL 0 |\n"
+                   "| TOTAL | PASS 374 / FAIL 0; skipped 0 |\n"
                    "| BUSINESS RULE CHANGED | NONE (frozen parser/tests and protected calculation/storage AST checks) |\n")
         print(summary)
         if os.getenv("GITHUB_STEP_SUMMARY"):

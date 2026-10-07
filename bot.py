@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import os
+import re
 import time
 from datetime import datetime
 from telegram import Update, ReplyKeyboardMarkup
@@ -93,6 +94,22 @@ def current(update,context):
     if not pid:raise ValueError('Bấm Nhập tin rồi chọn tên trước.')
     return DB.profile(workspace_owner(),pid,actor=update.effective_user.id)
 
+def profile_input(raw):
+    """Normalize only the create-person dialog, including legacy semicolons."""
+    parts=raw.split(';',1) if ';' in raw else raw.split(None,1)
+    if len(parts)!=2:raise ValueError('Gửi Khách HBX hoặc Chủ OK. Tên có thể có khoảng trắng.')
+    side={'khách':'Khách','khach':'Khách','chủ':'Chủ','chu':'Chủ'}.get(parts[0].strip().casefold())
+    if side is None:raise ValueError('Loại người phải là Khách hoặc Chủ.')
+    return side,parts[1].strip()
+
+def percent_input(raw):
+    """Whitespace separates quick values; commas remain inside each number."""
+    # Keep both existing configure separators intact; add no new separator.
+    if ';' in raw or re.search(r'\s+-\s+',raw):return raw
+    values=raw.split()
+    if len(values)!=5:raise ValueError('Gửi đúng 5 số: Đề Bao Xiên 2 Xiên 3,4 Càng. Ví dụ: 5 3,5 18 21 38')
+    return ';'.join(values)
+
 def card(p):
     cfg=p['config'];v=cfg.get('active','15');pc=cfg.get('variants',{}).get(v,cfg['percent'])
     return f"{p['name']} — {p['side']}\n"+'\n'.join(f'{k}: {pc[k]}% — thưởng ×'+(v if k=='Xiên 2' else cfg['reward'][k]) for k in ('Đề','Bao','Xiên 2','Xiên 3','Xiên 4','Càng'))+'\n% đang sửa thuộc bộ Xiên ×'+v+'; chỉ áp dụng cho tin mới.\n'+('Gửi tin liên tục hoặc bấm Xem tổng.' if cfg['ready'] else 'Chưa có %: bấm Sửa % trước.')
@@ -145,7 +162,7 @@ async def handle(update,context):
             await reply(update,'Đã gỡ quyền: '+str(len(removed))+'\n'+'\n'.join(map(str,removed))+'\nKhông có sẵn: '+str(len(missing)),USER_MENU);return
         if raw=='Hủy':context.user_data.pop('state',None);await reply(update,'Đã hủy.');return
         if raw in ('Nhập tin','Đổi người'):await choose(update,context);return
-        if raw=='Tạo người':context.user_data['state']='create';await reply(update,'Gửi: Khách; HBX hoặc Chủ; Tên chủ');return
+        if raw=='Tạo người':context.user_data['state']='create';await reply(update,'Gửi:\nKhách HBX\nhoặc:\nChủ OK\nTên có thể có khoảng trắng.');return
         if raw=='Đổi ngày':context.user_data['state']='day';await reply(update,'Gửi ngày dạng 06-10-2026.');return
         if raw=='Nợ cũ':
             p=current(update,context);context.user_data['state']='old_balance'
@@ -155,7 +172,7 @@ async def handle(update,context):
             await reply(update,'Gửi ID cần xem raw trong sổ của người/ngày đang chọn.');return
         if raw in ('Sửa %','Sửa thưởng'):
             current(update,context);context.user_data['state']='percent' if raw=='Sửa %' else 'reward'
-            await reply(update,'Chỉ đổi cho tin mới. Tin cũ giữ tỷ lệ lúc nhập.\n'+('Gửi 5 % theo Đề; Bao; Xiên 2; Xiên 3,4; Càng\nVí dụ: 5; 3,5; 18; 23; 38' if raw=='Sửa %' else 'Gửi 7 hệ số: Đề; Bao; Xiên 2; Xiên 3; Xiên 4; Càng; Áp càng\nVí dụ: 90; 3,5; 14; 48; 180; 400; 10'));return
+            await reply(update,'Chỉ đổi cho tin mới. Tin cũ giữ tỷ lệ lúc nhập.\n'+('Gửi 5 số theo thứ tự:\nĐề Bao Xiên 2 Xiên 3,4 Càng\nVí dụ:\n5 3,5 18 21 38\nSố lẻ dùng dấu phẩy, ví dụ 5,5.' if raw=='Sửa %' else 'Gửi 7 hệ số: Đề; Bao; Xiên 2; Xiên 3; Xiên 4; Càng; Áp càng\nVí dụ: 90; 3,5; 14; 48; 180; 400; 10'));return
         if raw in ('Xiên ×14','Xiên ×15'):
             p=current(update,context);DB.select_variant(owner,p['id'],raw[-2:],actor=actor);await show_card(update,context);return
         if raw in ('Sửa tin','Xóa tin'):
@@ -174,7 +191,7 @@ async def handle(update,context):
                 except ResultError:pass
             await reply(update,render_summary(p,day,rows,result));return
         if state=='create':
-            side,name=raw.split(';',1);pid=DB.create(owner,side.strip(),name.strip(),actor=actor);context.user_data['profile']=pid
+            side,name=profile_input(raw);pid=DB.create(owner,side,name,actor=actor);context.user_data['profile']=pid
             context.user_data.pop('state',None);await show_card(update,context);return
         if state=='choose':
             ps=DB.profiles(owner,actor=actor);matches=[p for p in ps if str(p['id'])==raw or p['name'].casefold()==raw.casefold()]
@@ -203,7 +220,7 @@ async def handle(update,context):
             await save_input(update,context,p,day,corrected,pending['message'],pending['tid'])
             return
         if state in ('percent','reward'):
-            DB.configure(owner,p['id'],state,raw,actor=actor);context.user_data.pop('state',None);await show_card(update,context);return
+            DB.configure(owner,p['id'],state,percent_input(raw) if state=='percent' else raw,actor=actor);context.user_data.pop('state',None);await show_card(update,context);return
         if state=='replace':
             tid,body=raw.split(';',1)
             if int(tid) not in context.user_data.get('edit_revisions',{}):
