@@ -133,10 +133,10 @@ class QuickInputTests(unittest.TestCase):
             await self.send('Sửa thưởng');await self.send('90;3,5;15;48;180;400;10')
         asyncio.run(flow())
         self.assertEqual(self.bot.DB.profile(OWNER,self.pid)['config']['reward'],{'Đề':'90','Bao':'3.5','Xiên 2':'15','Xiên 3':'48','Xiên 4':'180','Càng':'400','Áp càng':'10'})
-    def test_reward_space_input_not_extended(self):
+    def test_reward_space_input_missing_value_rejected(self):
         before=self.bot.DB.profile(OWNER,self.pid)
         async def flow():
-            await self.send('Sửa thưởng');await self.send('90 3,5 15 48 180 400 10')
+            await self.send('Sửa thưởng');await self.send('90 3,5 15 48 180 400')
         asyncio.run(flow())
         self.assertEqual(self.bot.DB.profile(OWNER,self.pid),before)
         self.assertEqual(self.context.user_data['state'],'reward')

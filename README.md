@@ -22,7 +22,7 @@ macOS: mở CHAY_BOT_MACOS.command (nếu bị chặn, chạy `bash CHAY_BOT_MAC
 1. /start → Tạo người → `Khách HBX` hoặc `Chủ Tên chủ`. Tên được có khoảng trắng; `Khach`/`Chu` cũng dùng được. Cách cũ `Khách; HBX` vẫn được hỗ trợ.
 2. Sửa % → `5 3,5 18 21 38`. Thứ tự Đề; Bao; Xiên 2; Xiên 3,4; Càng. Gửi đúng 5 số cách nhau bằng khoảng trắng; dấu phẩy trong số là phần thập phân (`5,5` là một số). Cách cũ `5; 3,5; 18; 21; 38` vẫn dùng được.
 3. Chọn Xiên ×14 hoặc ×15; đặt % riêng cho mỗi bộ. Trước khi chuyển bộ, kiểm tra bộ hiện trên màn hình. Không dùng bộ chưa đặt %.
-4. Sửa thưởng → 7 hệ số Đề; Bao; Xiên 2; Xiên 3; Xiên 4; Càng; Áp càng. Ví dụ `90; 3,5; 15; 48; 180; 400; 10`.
+4. Sửa thưởng → 7 hệ số Đề; Bao; Xiên 2; Xiên 3; Xiên 4; Càng; Áp càng. Ví dụ `90 3,5 15 48 180 400 10`. Gửi đúng 7 số cách nhau bằng khoảng trắng; dấu phẩy là phần thập phân. Xiên 2 chỉ nhận 14 hoặc 15. Cách cũ `90;3,5;15;48;180;400;10` vẫn dùng được.
 5. Nhập tin → chọn tên hoặc ID → gửi liên tục các tin theo cú pháp bot gốc, ví dụ `Đề 12=10k`, `X 12-34=50k`.
 6. Đổi ngày nếu cần. Xem tổng lấy kết quả mới nhất, chỉ tính thưởng khi ngày kết quả khớp ngày bảng. Nếu chưa có đúng ngày, chỉ hiện hàng và %, chưa chốt thu/trả.
 7. Sổ vé xem ID và tiền từng loại, không hiện nguyên tin; Xem raw → nhập ID để xem riêng nội dung gốc. Sửa tin gửi `ID; nội dung mới`. Sửa giữ tỷ lệ gốc. Xóa tin yêu cầu gõ XÓA.

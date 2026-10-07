@@ -75,6 +75,15 @@ async def handler_flow(bot, application, telegram):
         await send('0 0 0 0 0')
         require(bot.DB.profile(1, context.user_data['profile'])['side'] == 'Khách', 'Quick create side not normalized')
         passed('Quick create and whitespace percent through registered handlers')
+        await send('Sửa thưởng')
+        await send('90,5 3,5 15 48,5 180,5 400,5 10,5')
+        cfg=bot.DB.profile(1, context.user_data['profile'])['config']
+        require(cfg['reward']['Bao']=='3.5' and cfg['reward']['Đề']=='90.5', 'Reward decimal comma was split')
+        await send('Sửa thưởng')
+        await send('90 3,5 16 48 180 400 10')
+        require(bot.DB.profile(1, context.user_data['profile'])['config']==cfg, 'Invalid X2 changed config')
+        await send('90;3,5;15;48;180;400;10')
+        passed('Reward whitespace, decimal comma, X2 rejection and legacy semicolon')
         original = await send('B91=175k')
         require(not rows(), 'B91 was stored before confirmation')
         require('BAO TOÀN BỘ' in outputs[-1] and 'ĐỀ BỘ' in outputs[-1],
@@ -204,7 +213,7 @@ def main():
         passed('run.py import and handler registration (polling mocked)')
         loop.run_until_complete(handler_flow(bot, application, telegram))
     print('AZ24 LIVE: NOT RUN; TELEGRAM LIVE: NOT RUN')
-    print('RUNTIME SMOKE: PASS; separate from 374 unittest cases')
+    print('RUNTIME SMOKE: PASS; separate from 394 unittest cases')
     if os.getenv('GITHUB_STEP_SUMMARY'):
         with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as output:
             output.write('\nRuntime smoke (real dependency; live services disabled):\n\n')

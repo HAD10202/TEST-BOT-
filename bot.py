@@ -110,6 +110,13 @@ def percent_input(raw):
     if len(values)!=5:raise ValueError('Gửi đúng 5 số: Đề Bao Xiên 2 Xiên 3,4 Càng. Ví dụ: 5 3,5 18 21 38')
     return ';'.join(values)
 
+def reward_input(raw):
+    """Normalize only reward dialog separators; DB keeps all validation."""
+    if ';' in raw or re.search(r'\s+-\s+',raw):return raw
+    values=raw.split()
+    if len(values)!=7:raise ValueError('Gửi đúng 7 số: Đề Bao Xiên 2 Xiên 3 Xiên 4 Càng Áp càng.')
+    return ';'.join(values)
+
 def card(p):
     cfg=p['config'];v=cfg.get('active','15');pc=cfg.get('variants',{}).get(v,cfg['percent'])
     return f"{p['name']} — {p['side']}\n"+'\n'.join(f'{k}: {pc[k]}% — thưởng ×'+(v if k=='Xiên 2' else cfg['reward'][k]) for k in ('Đề','Bao','Xiên 2','Xiên 3','Xiên 4','Càng'))+'\n% đang sửa thuộc bộ Xiên ×'+v+'; chỉ áp dụng cho tin mới.\n'+('Gửi tin liên tục hoặc bấm Xem tổng.' if cfg['ready'] else 'Chưa có %: bấm Sửa % trước.')
@@ -172,7 +179,7 @@ async def handle(update,context):
             await reply(update,'Gửi ID cần xem raw trong sổ của người/ngày đang chọn.');return
         if raw in ('Sửa %','Sửa thưởng'):
             current(update,context);context.user_data['state']='percent' if raw=='Sửa %' else 'reward'
-            await reply(update,'Chỉ đổi cho tin mới. Tin cũ giữ tỷ lệ lúc nhập.\n'+('Gửi 5 số theo thứ tự:\nĐề Bao Xiên 2 Xiên 3,4 Càng\nVí dụ:\n5 3,5 18 21 38\nSố lẻ dùng dấu phẩy, ví dụ 5,5.' if raw=='Sửa %' else 'Gửi 7 hệ số: Đề; Bao; Xiên 2; Xiên 3; Xiên 4; Càng; Áp càng\nVí dụ: 90; 3,5; 14; 48; 180; 400; 10'));return
+            await reply(update,'Chỉ đổi cho tin mới. Tin cũ giữ tỷ lệ lúc nhập.\n'+('Gửi 5 số theo thứ tự:\nĐề Bao Xiên 2 Xiên 3,4 Càng\nVí dụ:\n5 3,5 18 21 38\nSố lẻ dùng dấu phẩy, ví dụ 5,5.' if raw=='Sửa %' else 'Gửi 7 số theo thứ tự:\nĐề Bao Xiên 2 Xiên 3 Xiên 4 Càng Áp càng\nVí dụ:\n90 3,5 15 48 180 400 10\nSố lẻ dùng dấu phẩy, ví dụ 3,5.'));return
         if raw in ('Xiên ×14','Xiên ×15'):
             p=current(update,context);DB.select_variant(owner,p['id'],raw[-2:],actor=actor);await show_card(update,context);return
         if raw in ('Sửa tin','Xóa tin'):
@@ -220,7 +227,7 @@ async def handle(update,context):
             await save_input(update,context,p,day,corrected,pending['message'],pending['tid'])
             return
         if state in ('percent','reward'):
-            DB.configure(owner,p['id'],state,percent_input(raw) if state=='percent' else raw,actor=actor);context.user_data.pop('state',None);await show_card(update,context);return
+            DB.configure(owner,p['id'],state,percent_input(raw) if state=='percent' else reward_input(raw),actor=actor);context.user_data.pop('state',None);await show_card(update,context);return
         if state=='replace':
             tid,body=raw.split(';',1)
             if int(tid) not in context.user_data.get('edit_revisions',{}):

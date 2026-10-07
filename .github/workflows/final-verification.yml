@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   verify:
-    name: Python 3.11 - ${{ matrix.os }} - 374 tests and runtime smoke
+    name: Python 3.11 - ${{ matrix.os }} - 394 tests and runtime smoke
     strategy:
       fail-fast: false
       matrix:
@@ -42,7 +42,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m unittest discover -v 2>&1 | tee unittest.log
-      - name: Verify actual 78 old + 102 safety + 89 UI + 73 multi-user + 32 quick input passed without skips
+      - name: Verify actual 78 old + 102 safety + 89 UI + 73 multi-user + 32 quick input + 20 reward input passed without skips
         run: python ci/verify_inventory.py --results unittest.log
       - name: Real imports and mocked handler integration - no live services
         run: python ci/verify_runtime.py
